@@ -1,4 +1,4 @@
-# SqlServerPrimavera
+# Sql Server Scripts
 Various scripts I use for Primavera enterprise project portfolio management software
 
 <h1 align="center">
