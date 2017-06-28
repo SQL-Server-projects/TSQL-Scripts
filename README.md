@@ -1,7 +1,7 @@
 # Sql Server Scripts
 Various scripts I use for Primavera enterprise project portfolio management software
 
-## Primavera SQL Server Database Scripts
+## Primavera SQL Server 2008 R2 Database Scripts
 * [Database Backup](PMDB.Create_Database_Backup.sql)
 * [Database Restore](PMDB.Restore_Primavera_Backup.sql)
 * [Remove Database Locks](PMDB.Remove%20database%20locks.sql)
