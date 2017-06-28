@@ -1,5 +1,5 @@
 # SQL Server 2008 R2 Scripts
-Various scripts I use for Primavera enterprise project portfolio management software
+Various scripts I use for SQL Server
 
 ## Primavera Scripts
 * [Database Backup](PMDB.Create_Database_Backup.sql)
