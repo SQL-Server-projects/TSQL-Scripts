@@ -9,4 +9,4 @@ Various scripts I use for Primavera enterprise project portfolio management soft
   <img src="Images/sql_server.png" alt="MySqlServer" />
 </h1>
  
-[a relative link]( PMDB.Create_Database_Backup.sql)
+* [Primavera Database Backup Script](PMDB.Create_Database_Backup.sql)
