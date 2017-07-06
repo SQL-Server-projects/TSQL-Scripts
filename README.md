@@ -7,10 +7,10 @@ Various scripts I use for SQL Server
 * [Database Restore](SSDB.Create_Database_Backup.sql)
 
 ## Reporting Services Scripts
-* [Subscriptions](SSRS.Report_Subscription.sql)
 * [Execution](SSRS.Report_Execution.sql)
 * [Permissions](SSRS.Report_Permissions.sql)
 * [Report List](SSRS.Report_List.sql)
+* [Subscriptions](SSRS.Report_Subscription.sql)
 * [Update Subscription Owner](SSRS.Update_Subscription_Owner.sql)
 
 ## Primavera Scripts
