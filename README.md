@@ -1,3 +1,5 @@
+<img align="left" src="Images/ReadMe/App.png" width="64px" >
+
 # SQL Server 2008 R2 Scripts
 Various scripts I use for SQL Server
 
