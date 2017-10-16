@@ -7,6 +7,7 @@ Various scripts I use for SQL Server
 * [Check Index Fragmentation](SSDB.Check_Index_Fragmentation.sql)
 * [Database Backup](SSDB.Restore_Database_Backup.sql)
 * [Database Restore](SSDB.Create_Database_Backup.sql)
+* [Refresh Views](SSDB.Script_Refresh_Views.sql)
 
 ## Reporting Services Scripts
 * [Execution](SSRS.Report_Execution.sql)
