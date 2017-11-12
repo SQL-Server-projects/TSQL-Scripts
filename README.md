@@ -8,6 +8,8 @@ Various scripts I use for SQL Server
 * [Database Backup](SSDB.Restore_Database_Backup.sql)
 * [Database Restore](SSDB.Create_Database_Backup.sql)
 * [Refresh Views](SSDB.Script_Refresh_Views.sql)
+* [Row Level Audit Add](SSDB.Row_Level_Auditing_Add.sql)
+* [Row Level Audit Remove](SSDB.Row_Level_Auditing_Remove.sql)
 
 ## Reporting Services Scripts
 * [Execution](SSRS.Report_Execution.sql)
