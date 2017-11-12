@@ -8,9 +8,6 @@
 |--------------------------------------------------------------------------------------------------
 */
 
-DECLARE @HideNonAccessGroups AS BIT
-SET @HideNonAccessGroups = 0
-
 :setvar _server "Server1"
 :setvar _user "***username***"
 :setvar _password "***password***"
@@ -19,6 +16,13 @@ SET @HideNonAccessGroups = 0
 
 USE [$(_database)];
 GO
+
+
+DECLARE @all_value AS VARCHAR(50)
+DECLARE @UserName AS VARCHAR(50)
+
+SET @all_value = '<ALL>'
+SET @UserName = '<ALL>'
 
 
 ;WITH 
@@ -45,23 +49,15 @@ AS
 	  ( 'Images')
 	, ( 'SharedDataSets')
 	, ( 'Data Sources')
+	, ( 'contents')
 	, ( '')
 	) tbl ([FolderName]) 
-)
-, 
-reporting_role_names -- added roles to the report server
-AS
-(
-	SELECT tbl.* FROM (VALUES
-	  ( 'Browser Group', 'DL', 'GG')
-	, ( 'Functional Owner', NULL, NULL)
-	) tbl ([RoleName], [RoleNamePrefix], [RoleNamePrefixReplace]) 
 )
 , 
 user_list
 AS
 (
-	SELECT 
+	SELECT
 		  usr.UserID
 		, usr.UserName
 		, UserNameFormat = 
@@ -72,51 +68,20 @@ AS
 	FROM 
 		dbo.Users usr
 )
-, 
-reporting_roles
-AS
-(
 	SELECT 
-		  cat.Name
+		  FolderName = cat.[Name]
+		, FolderPath = cat.Path
 		, rol.RoleName
-		, UserNameFormat =
-			CASE 
-				WHEN LEFT(usr.UserNameFormat, 2) = rpt.RoleNamePrefix THEN rpt.RoleNamePrefixReplace + SUBSTRING(usr.UserNameFormat, 3, LEN(usr.UserNameFormat))
-				ELSE usr.UserNameFormat 
-			END 
-		, ReportingRoleName = rpt.RoleName
+		, usr.UserNameFormat
 	FROM 
 		dbo.[Catalog] cat
 		INNER JOIN catalog_type_description tpd ON cat.[Type] = tpd.TypeID	
 		LEFT JOIN dbo.PolicyUserRole urol ON urol.PolicyID = cat.PolicyID
 		LEFT JOIN dbo.Roles rol ON urol.RoleID = rol.RoleID
-		LEFT JOIN reporting_role_names rpt ON rpt.RoleName = rol.RoleName
 		LEFT JOIN dbo.Policies pol ON urol.PolicyID = pol.PolicyID
 		LEFT JOIN user_list usr ON urol.UserID = usr.UserID
 		LEFT JOIN nonreport_folders nrf ON nrf.FolderName = cat.Name
 	WHERE 
 		1=1
 		AND nrf.FolderName IS NULL
-)
-SELECT DISTINCT
-	  FolderName = rpt.Name
-	, rpt.RoleName
-	, UserNameFormat = STUFF((SELECT '; ' + rol.UserNameFormat FROM reporting_roles rol WHERE rol.RoleName = rpt.RoleName AND rol.Name = rpt.Name FOR XML PATH('')),1,1,'')
-	, ReportingRoleName
-FROM 
-	reporting_roles rpt
-WHERE	
-	1=1
-	AND (
-		CASE 
-			WHEN @HideNonAccessGroups = 0 THEN 1
-			ELSE 2
-		END			
-		) 
-		<= 
-		(
-		CASE 
-			WHEN ISNULL(ReportingRoleName, '') = '' THEN 1
-			ELSE 2
-		END
-		) 
+		AND (@all_value IN(@UserName) OR usr.UserNameFormat IN(@UserName))
