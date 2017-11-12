@@ -4,26 +4,6 @@
 '------------------------------------------------------------------------
 */
 
-DECLARE @ReportFolder AS VARCHAR(100)
-DECLARE @ReportName AS VARCHAR(100)
-DECLARE @EmailLike AS VARCHAR(100)
-DECLARE @ModifiedBy AS VARCHAR(50)
-DECLARE @SubcriptionOwner AS VARCHAR(50)
-DECLARE @SubscriptionStatus AS VARCHAR(1)
-DECLARE @EventStatus AS VARCHAR(50)
-DECLARE @Current AS VARCHAR(50)
-DECLARE @LastSubscriptionDate AS DATETIME
-
-SET @ReportFolder = '<ALL>'
-SET @ReportName = '<ALL>'
-SET @EmailLike = NULL 
-SET @ModifiedBy = NULL
-SET @SubcriptionOwner = NULL
-SET @SubscriptionStatus = 'A' -- Y=Sent, N=Fail, A=All
-SET @EventStatus = '<ALL>'  -- status from ReportServer.dbo.ExecutionLog 
-SET @Current = '<ALL>' 
-SET @LastSubscriptionDate = NULL --getdate()-1
-
 :setvar _server "Server1"
 :setvar _user "***username***"
 :setvar _password "***password***"
@@ -34,11 +14,35 @@ USE [$(_database)];
 GO
 
 
+DECLARE @all_value AS VARCHAR(100)
+DECLARE @ReportFolder AS VARCHAR(100)
+DECLARE @ReportName AS VARCHAR(100)
+DECLARE @EmailLike AS VARCHAR(100)
+DECLARE @ModifiedBy AS VARCHAR(50)
+DECLARE @SubcriptionOwner AS VARCHAR(50)
+DECLARE @SubscriptionStatus AS VARCHAR(1)
+DECLARE @EventStatus AS VARCHAR(50)
+DECLARE @Current AS VARCHAR(50)
+DECLARE @LastSubscriptionDate AS DATETIME
+
+SET @all_value = '<ALL>'
+SET @ReportFolder = '<ALL>'
+SET @ReportName = '<ALL>'
+SET @EmailLike = NULL 
+SET @ModifiedBy = NULL
+SET @SubcriptionOwner = NULL
+SET @SubscriptionStatus = 'A' -- Y=Sent, N=Fail, A=All
+SET @EventStatus = '<ALL>'  -- status from ReportServer.dbo.ExecutionLog 
+SET @Current = '<ALL>' 
+SET @LastSubscriptionDate = NULL --getdate()-1
+
+*/
+
 ;WITH
 report_users 
 AS
 (
-	SELECT UserID, SimpleUserName = UPPER(RIGHT(UserName,(LEN(UserName)-CHARINDEX('\',UserName)))) FROM dbo.Users
+	SELECT UserID, UserName, SimpleUserName = UPPER(RIGHT(UserName,(LEN(UserName)-CHARINDEX('\',UserName)))) FROM dbo.Users
 )
 ,
 report_catalog
@@ -49,7 +53,7 @@ AS
 		, c.CreatedById
 		, c.ModifiedById
 		, c.[Type]
-		, c.Name 
+		, c.[Name]
 		, c.[Description]
 		, c.Parameter
 		, ReportCreationDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), c.CreationDate, 13))
@@ -57,14 +61,14 @@ AS
 		, ReportFolder = 
 			CASE
 				WHEN c.Path = '/' + c.Name THEN ''
-				ELSE SUBSTRING(c.Path, 2, Len(c.Path)-Len(c.Name)-2) 
+				ELSE SUBSTRING(c.[Path], 2, Len(c.[Path])-Len(c.[Name])-2) 
 			END 
 		, ReportPath = c.[Path]
 		, UrlPath = 'http://' + Host_Name() + '/Reports/Pages/Folder.aspx?ItemPath=%2f'
 		, ReportDefinition = CONVERT(VARCHAR(MAX),CONVERT(VARBINARY(MAX),c.content))  
 	FROM 
 		dbo.Catalog AS c
-	WHERE c.Type = 2
+	WHERE c.[Type] = 2
 )
 , 
 subscription_days
@@ -252,7 +256,7 @@ AS
 		, sch.DaysOfMonth
 		, sch.[Month]
 		, sch.MonthlyWeek 
-		, JobName = sj.name 
+		--, JobName = sj.name 
 		, sch.ScheduleName 
 		, sch.ScheduleDays 
 		, sch.SchDaySun
@@ -271,7 +275,7 @@ AS
 		dbo.Subscriptions AS s 
 		LEFT JOIN dbo.Notifications AS n ON n.SubscriptionID = s.SubscriptionID AND s.Report_OID = n.ReportID
 		LEFT JOIN dbo.ReportSchedule AS rs ON s.SubscriptionID = rs.SubscriptionID 
-		LEFT JOIN MSDB.dbo.sysjobs AS sj ON sj.name = CAST(rs.ScheduleID AS VARCHAR(255))
+		--LEFT JOIN MSDB.dbo.sysjobs AS sj ON sj.name = CAST(rs.ScheduleID AS VARCHAR(255))
 		LEFT JOIN subscription_schedule AS sch ON rs.ScheduleID = sch.ScheduleID 
 	WHERE 
 		1=1
@@ -321,7 +325,7 @@ SELECT
 	, s.DaysOfMonth
 	, s.[Month]
 	, s.MonthlyWeek 	
-	, s.JobName 
+	, JobName = NULL  --, s.JobName 	
 	, s.ScheduleName 
 	, s.ScheduleDays
 	, s.SchDaySun
@@ -336,12 +340,12 @@ SELECT
 	, s.Flags
 	, s.RecurrenceType
 	, s.[State]
-	, EventStatus = el.Status 
+	, EventStatus = el.[Status]
 	, EventDateTime = el.TimeEnd 
 FROM  
 	report_catalog AS c
 	INNER JOIN	report_subscription AS s ON s.Report_OID = c.ItemID 
-	LEFT OUTER JOIN	(SELECT b.ReportID, b.Status, b.TimeEnd
+	LEFT OUTER JOIN	(SELECT b.ReportID, b.[Status], b.TimeEnd
 					FROM dbo.ExecutionLog b 
 					INNER JOIN (SELECT ReportID, MAX(TimeEnd) AS TimeEnd
 								FROM dbo.ExecutionLog 
@@ -351,17 +355,34 @@ FROM
 	LEFT OUTER JOIN report_users AS urm ON c.ModifiedById = urm.UserID 
 	LEFT OUTER JOIN report_users AS usc ON s.OwnerID = usc.UserID 
 	LEFT OUTER JOIN report_users AS usm ON s.ModifiedByID = usm.UserID 
-WHERE c.Type = 2
-	AND (SUBSTRING(s.ExtensionSettings, LEN('<Name>TO</Name><Value>') + CHARINDEX('<Name>TO</Name><Value>', s.ExtensionSettings), CHARINDEX('</Value>', s.ExtensionSettings, CHARINDEX('<Name>TO</Name><Value>', s.ExtensionSettings) + 1) - (LEN('<Name>TO</Name><Value>') + CHARINDEX('<Name>TO</Name><Value>', s.ExtensionSettings)))
-		LIKE '%' + @EmailLike + '%' OR @EmailLike IS NULL		
-		OR CASE CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings) WHEN 0 THEN '' ELSE SUBSTRING(s.ExtensionSettings, LEN('<Name>CC</Name><Value>') + CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings), CHARINDEX('</Value>', s.ExtensionSettings, CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings) + 1) - (LEN('<Name>CC</Name><Value>') + CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings))) END 
+WHERE 
+	1=1
+	AND c.[Type] = 2
+	AND (@all_value IN (@ReportFolder) OR c.ReportFolder IN(@ReportFolder))
+	AND (@all_value IN (@ReportFolder) OR CHARINDEX(@ReportFolder, c.ReportPath) > 0)
+	AND (@all_value IN(@ReportName) OR c.[Name] IN(@ReportName))
+	AND (@all_value IN(@EventStatus) OR el.[Status] IN(@EventStatus))
+	AND (@all_value IN(@Current) OR CASE WHEN s.ScheduleEndDate IS NULL THEN 'Current' WHEN s.ScheduleEndDate IS NOT NULL THEN 'Non Current' END = @Current)
+	AND (@all_value IN(@SubscriptionStatus) OR s.SubscriptionLastStatus LIKE '%' + @SubscriptionStatus + '%')
+	AND (s.LastRunTime >= @LastSubscriptionDate OR @LastSubscriptionDate IS NULL)	
+	AND 
+		(
+			(SUBSTRING(s.ExtensionSettings, LEN('<Name>TO</Name><Value>') + CHARINDEX('<Name>TO</Name><Value>', s.ExtensionSettings), CHARINDEX('</Value>', s.ExtensionSettings, CHARINDEX('<Name>TO</Name><Value>', s.ExtensionSettings) + 1) - (LEN('<Name>TO</Name><Value>') + CHARINDEX('<Name>TO</Name><Value>', s.ExtensionSettings)))
+			LIKE '%' + @EmailLike + '%' OR @EmailLike IS NULL
+		)
+		OR
+		( 
+			CASE CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings) 
+				WHEN 0 THEN '' 
+				ELSE SUBSTRING(s.ExtensionSettings, LEN('<Name>CC</Name><Value>') + CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings), CHARINDEX('</Value>', s.ExtensionSettings, CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings) + 1) - (LEN('<Name>CC</Name><Value>') + CHARINDEX('<Name>CC</Name><Value>', s.ExtensionSettings))) 
+			END 
 		LIKE '%' + @EmailLike + '%'
-		OR CASE CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings) WHEN 0 THEN '' ELSE SUBSTRING(s.ExtensionSettings, LEN('<Name>BCC</Name><Value>') + CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings), CHARINDEX('</Value>', s.ExtensionSettings, CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings) + 1) - (LEN('<Name>BCC</Name><Value>') + CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings))) END 
-		LIKE '%' + @EmailLike + '%') -- search for a name in the email to field
-	AND ('<ALL>' IN(@EventStatus) OR el.Status IN(@EventStatus))
-	AND ('ALL' = @SubscriptionStatus OR s.SubscriptionLastStatus LIKE '%' + @SubscriptionStatus + '%')
-	AND ('<ALL>' IN (@ReportFolder) OR c.ReportFolder IN(@ReportFolder))
-	AND ('<ALL>' IN (@ReportFolder) OR CHARINDEX(@ReportFolder, c.ReportPath) > 0)
-	AND ('<ALL>' IN(@ReportName) OR c.Name IN(@ReportName))
-	AND ('<ALL>' IN(@Current) OR CASE WHEN s.ScheduleEndDate IS NULL THEN 'Current' WHEN s.ScheduleEndDate IS NOT NULL THEN 'Non Current' END = @Current)
-	AND (s.LastRunTime >= @LastSubscriptionDate OR @LastSubscriptionDate IS NULL)
+		)
+		OR 
+		(
+			CASE CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings) 
+				WHEN 0 THEN '' 
+				ELSE SUBSTRING(s.ExtensionSettings, LEN('<Name>BCC</Name><Value>') + CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings), CHARINDEX('</Value>', s.ExtensionSettings, CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings) + 1) - (LEN('<Name>BCC</Name><Value>') + CHARINDEX('<Name>BCC</Name><Value>', s.ExtensionSettings))) 
+			END 
+		LIKE '%' + @EmailLike + '%')
+		)
