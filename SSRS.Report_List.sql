@@ -4,26 +4,6 @@
 '------------------------------------------------------------------------------
 */
 
-DECLARE @ReportFolder AS VARCHAR(100)
-DECLARE @ReportName AS VARCHAR(100)
-DECLARE @ReportDescription AS VARCHAR(50)
-DECLARE @CreatedBy AS VARCHAR(50)
-DECLARE @CreatedDate AS DATETIME
-DECLARE @ModifiedBy AS VARCHAR(50)
-DECLARE @ModifiedDate AS DATETIME
-DECLARE @SearchFor AS VARCHAR(50)
-DECLARE @SearchType AS VARCHAR(50)
-
-SET @ReportFolder = '<ALL>'
-SET @ReportName = NULL
-SET @ReportDescription = NULL
-SET @CreatedBy = NULL
-SET @CreatedDate = NULL
-SET @ModifiedBy = NULL
-SET @ModifiedDate = NULL
-SET @SearchFor = NULL
-SET @SearchType = NULL  -- 'Report Name', 'Report Description', 'Report Definition'
-
 :setvar _server "Server1"
 :setvar _user "***username***"
 :setvar _password "***password***"
@@ -34,74 +14,99 @@ USE [$(_database)];
 GO
 
 
+DECLARE @ReportFolder AS VARCHAR(100)
+DECLARE @ReportName AS VARCHAR(100)
+DECLARE @ReportDescription AS VARCHAR(50)
+DECLARE @CreatedBy AS VARCHAR(50)
+DECLARE @CreatedDate AS DATETIME
+DECLARE @ModifiedBy AS VARCHAR(50)
+DECLARE @ModifiedDate AS DATETIME
+DECLARE @ReportDefinition AS VARCHAR(50)
+DECLARE @SearchFor AS VARCHAR(50)
+DECLARE @SearchType AS VARCHAR(50)
+DECLARE @all_value AS VARCHAR(50)
+
+SET @ReportFolder = '<ALL>'
+SET @ReportName = NULL
+SET @ReportDescription = NULL
+SET @CreatedBy = NULL
+SET @CreatedDate = NULL
+SET @ModifiedBy = NULL
+SET @ModifiedDate = NULL
+SET @ReportDefinition = NULL
+SET @SearchFor = NULL
+SET @SearchType = NULL   -- 'Report Name', 'Report Description', 'Report Definition'
+SET @all_value = '<ALL>'
+
+*/
+
 ;WITH
 report_users 
 AS
 (
-	SELECT UserID, SimpleUserName = UPPER(RIGHT(UserName,(LEN(UserName)-CHARINDEX('\',UserName)))) FROM dbo.Users
+	SELECT UserID, SimpleUserName = UPPER(RIGHT(UserName, (LEN(UserName)-CHARINDEX('\',UserName)))) FROM dbo.Users
 )
 ,
 report_catalog
 AS
 (
 	SELECT    
-		  c.ItemID
-		, c.CreatedById
-		, c.ModifiedById
-		, c.[Type]
-		, c.Name 
-		, c.[Description]
-		, c.Parameter
-		, ReportCreationDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), c.CreationDate, 13))
-		, ReportModifiedDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), c.ModifiedDate, 13))
-		, ReportFolder = 
-			CASE
-				WHEN c.Path = '/' + c.Name THEN ''
-				ELSE SUBSTRING(c.Path, 2, Len(c.Path)-Len(c.Name)-2) 
-			END 
-		, ReportPath = c.[Path]
-		, UrlPath = 'http://' + Host_Name() + '/Reports/Pages/Folder.aspx?ItemPath=%2f'
-		, ReportDefinition = CONVERT(VARCHAR(MAX),CONVERT(VARBINARY(MAX),c.content))  
+		  rpt.ItemID
+		, rpt.CreatedById
+		, rpt.ModifiedById
+		, rpt.[Type]
+		, rpt.[Name] 
+		, rpt.[Description]
+		, rpt.Parameter
+		, CreationDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), rpt.CreationDate, 13))
+		, ModifiedDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), rpt.ModifiedDate, 13))
+		, ReportFolder = SUBSTRING(rpt.[Path], 2, Len(rpt.[Path])-Len(rpt.[Name])-2) 
+		, rpt.[Path]
+		, URL_ReportFolder = 'http://' + Host_Name() + '/Reports/Pages/Report.aspx?ItemPath=%2f'  + SUBSTRING(rpt.[Path], 2, Len(rpt.[Path])-Len(rpt.[Name])-2)  + '&ViewMode=List'
+		, URL_Report = 'http://' + Host_Name() + '/Reports/Pages/Report.aspx?ItemPath=%2f'  + SUBSTRING(rpt.[Path], 2, Len(rpt.[Path])-Len(rpt.[Name])-2)  + '%2f' + rpt.[Name]
+		, ReportDefinition = CONVERT(VARCHAR(MAX), CONVERT(VARBINARY(MAX), rpt.Content))  
 	FROM 
-		dbo.Catalog AS c
+		dbo.Catalog AS rpt
 	WHERE 
 		1=1
-		AND c.Type = 2
+		AND rpt.[Type] = 2
 )
 SELECT    
-	  c.ItemID
-	, c.Name 
-	, c.Description
-	, c.Parameter
+	  rpt.ItemID
+	, rpt.[Name]
+	, rpt.[Description]
+	, rpt.Parameter
 	, ReportCreatedBy = urc.SimpleUserName
-	, c.ReportCreationDate 
+	, ReportCreationDate = rpt.CreationDate 
 	, ReportModifiedBy = urm.SimpleUserName
-	, c.ReportModifiedDate 
-	, c.ReportFolder
-	, c.ReportPath 
-	, URL_ReportFolder = c.UrlPath + c.ReportFolder + '&ViewMode=List'
-	, URL_Report = c.UrlPath + c.ReportFolder + '%2f' + c.Name 
-	, c.ReportDefinition
-	, CommandText = c.ReportDefinition
+	, ReportModifiedDate = rpt.ModifiedDate 
+	, rpt.ReportFolder
+	, ReportPath = rpt.[Path]
+	, rpt.URL_ReportFolder
+	, rpt.URL_Report
+	, rpt.ReportDefinition
+	, CommandText = rpt.ReportDefinition
 	, el.ExecutionLogCount
 	, sc.SubscriptionCount
 	, SearchForStr = ISNULL(@SearchFor, ' ') 
 FROM  
-	report_catalog AS c 
-	LEFT OUTER JOIN (SELECT COUNT([ReportID]) AS ExecutionLogCount, ReportID FROM dbo.ExecutionLog GROUP BY ReportID) el ON el.ReportID = c.ItemID
-	LEFT OUTER JOIN	(SELECT COUNT([Report_OID]) AS SubscriptionCount, Report_OID FROM dbo.Subscriptions GROUP BY Report_OID) sc  ON sc.Report_OID = c.ItemID
-	LEFT OUTER JOIN report_users AS urc ON c.CreatedById = urc.UserID 
-	LEFT OUTER JOIN report_users AS urm ON c.ModifiedById = urm.UserID 
+	report_catalog AS rpt 
+	LEFT JOIN (SELECT ExecutionLogCount = COUNT([ReportID]), ReportID FROM dbo.ExecutionLog GROUP BY ReportID) el ON el.ReportID = rpt.ItemID
+	LEFT JOIN (SELECT SubscriptionCount = COUNT([Report_OID]), Report_OID FROM dbo.Subscriptions GROUP BY Report_OID) sc ON sc.Report_OID = rpt.ItemID
+	LEFT JOIN report_users AS urc ON rpt.CreatedById = urc.UserID 
+	LEFT JOIN report_users AS urm ON rpt.ModifiedById = urm.UserID 
 WHERE 
-		(@CreatedBy IS NULL OR urc.SimpleUserName LIKE '%' + @CreatedBy + '%')
-	AND (@CreatedDate IS NULL OR c.ReportCreationDate >= @CreatedDate)
+	1=1
+	AND (@all_value IN (@ReportFolder) OR rpt.ReportFolder IN(@ReportFolder))
+	AND (@CreatedBy IS NULL OR urc.SimpleUserName LIKE '%' + @CreatedBy + '%')
+	AND (@CreatedDate IS NULL OR rpt.CreationDate >= @CreatedDate)
 	AND (@ModifiedBy IS NULL OR urm.SimpleUserName LIKE '%' + @ModifiedBy + '%')
-	AND (@ModifiedDate IS NULL OR c.ReportModifiedDate >= @ModifiedDate)
-	AND ('<ALL>' IN (@ReportFolder) OR c.ReportFolder IN(@ReportFolder))
-	AND (@SearchFor IS NULL OR 
-			(
-				   (('<ALL>' IN(@SearchType) OR 'Report Name' IN(@SearchType)) AND c.Name LIKE '%' + @SearchFor + '%')
-				OR (('<ALL>' IN(@SearchType) OR 'Report Description' IN(@SearchType)) AND c.[Description] LIKE '%' + @SearchFor + '%')
-				OR (('<ALL>' IN(@SearchType) OR 'Report Definition' IN(@SearchType)) AND PATINDEX('%' + @SearchFor + '%', c.ReportDefinition) > 0)   
-			)
+	AND (@ModifiedDate IS NULL OR rpt.ModifiedDate >= @ModifiedDate)
+	AND (
+			@SearchFor IS NULL 
+			OR (
+				(rpt.[Name] LIKE '%' + @SearchFor + '%' AND (@all_value IN(@SearchType) OR 'Report Name' IN(@SearchType)))
+				OR (rpt.[Description] LIKE '%' + @SearchFor + '%' AND (@all_value IN(@SearchType) OR 'Report Description' IN(@SearchType)) )
+				OR (PATINDEX('%' + @SearchFor + '%', rpt.ReportDefinition) > 0 AND (@all_value IN(@SearchType) OR 'Report Definition' IN(@SearchType)) )   
+				)
 		)
