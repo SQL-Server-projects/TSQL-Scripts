@@ -1,9 +1,9 @@
-/*'--------------------------------------------------------------------------------------
-| Purpose:	To search the reporting services execution log
-| Note:		SQLCmdMode Script
-'----------------------------------------------------------------------------------------
+/*'---------------------------------------------------------------------------------------
+' Purpose:	to search the reporting services execution log
+'-----------------------------------------------------------------------------------------
 */
 
+DECLARE @all_value AS VARCHAR(10)
 DECLARE @LogStatus AS VARCHAR(50)
 DECLARE @ReportFolder AS VARCHAR(450)
 DECLARE @ReportName AS VARCHAR(450)
@@ -12,6 +12,7 @@ DECLARE @GroupByColumn AS VARCHAR(50)
 DECLARE @StartDate AS DATETIME
 DECLARE @EndDate AS DATETIME
 
+SET @all_value = '<ALL>'
 SET @LogStatus = '<ALL>'
 SET @ReportFolder = '...A Report Folder Name...'
 SET @ReportName = '<ALL>' 
@@ -20,92 +21,76 @@ SET @GroupByColumn = 'Report Folder'
 SET @StartDate = NULL
 SET @EndDate = NULL
 
-:setvar _server "Server1"
-:setvar _user "***username***"
-:setvar _password "***password***"
-:setvar _database "ReportServer"
-:connect $(_server) -U $(_user) -P $(_password)
-
-USE [$(_database)];
-GO
 
 
 ;WITH
-report_execution_log
+report_users 
 AS
 (
-	SELECT 
-		  el.*
-		, SimpleUserName = RIGHT(el.UserName,(LEN(el.UserName)-CHARINDEX('\',el.UserName)))
-		, TimeStartDate = CONVERT(DATETIME, CONVERT(VARCHAR(11),el.TimeStart,13))
-		, TotalSecondsFormat = CONVERT(CHAR(8),DATEADD(ms,(el.TimeDataRetrieval + el.TimeProcessing + el.TimeRendering),0),108)
-		, TimeDataRetrievalFormat = CONVERT(CHAR(8),DATEADD(ms,el.TimeDataRetrieval,0),108) 
-		, TimeProcessingFormat = CONVERT(CHAR(8),DATEADD(ms,el.TimeProcessing,0),108)  
-		, TimeRenderingFormat = CONVERT(CHAR(8),DATEADD(ms,el.TimeRendering,0),108) 
-		, OrderbyDateFormat = CAST(TimeStart AS DATETIME) 
-	FROM 
-		ReportServer.dbo.ExecutionLog el
+	SELECT UserID, UserName, SimpleUserName = UPPER(RIGHT(UserName, (LEN(UserName)-CHARINDEX('\',UserName)))) FROM dbo.Users
 )
 ,
 report_catalog
 AS
 (
 	SELECT    
-		  c.ItemID
-		, c.CreatedById
-		, c.ModifiedById
-		, c.[Type]
-		, c.Name 
-		, c.[Path]
-		, c.[Description]
-		, c.Parameter
-		, ReportCreationDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), c.CreationDate, 13))
-		, ReportModifiedDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), c.ModifiedDate, 13))
-		, ReportFolder = 
-			CASE
-				WHEN c.Path = '/' + c.Name THEN ''
-				ELSE SUBSTRING(c.Path, 2, Len(c.Path)-Len(c.Name)-2) 
-			END 
-		, ReportPath = c.[Path]
-		, UrlPath = 'http://' + Host_Name() + '/Reports/Pages/Folder.aspx?ItemPath=%2f'
-		, ReportDefinition = CONVERT(VARCHAR(MAX),CONVERT(VARBINARY(MAX),c.content))  
+		  rpt.ItemID
+		, rpt.CreatedById
+		, rpt.ModifiedById
+		, rpt.[Type]
+		, rpt.[Name] 
+		, ReportName = rpt.[Name] 
+		, rpt.[Description]
+		, rpt.Parameter
+		, CreationDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), rpt.CreationDate, 13))
+		, ModifiedDate = CONVERT(DATETIME, CONVERT(VARCHAR(11), rpt.ModifiedDate, 13))
+		, ReportFolder = SUBSTRING(rpt.[Path], 2, Len(rpt.[Path])-Len(rpt.[Name])-2) 
+		, rpt.[Path]
+		, URL_ReportFolder = 'http://' + Host_Name() + '/Reports/Pages/Report.aspx?ItemPath=%2f'  + SUBSTRING(rpt.[Path], 2, Len(rpt.[Path])-Len(rpt.[Name])-2)  + '&ViewMode=List'
+		, URL_Report = 'http://' + Host_Name() + '/Reports/Pages/Report.aspx?ItemPath=%2f'  + SUBSTRING(rpt.[Path], 2, Len(rpt.[Path])-Len(rpt.[Name])-2)  + '%2f' + rpt.[Name]
+		, ReportDefinition = CONVERT(VARCHAR(MAX), CONVERT(VARBINARY(MAX), rpt.Content))  
+		, HostName = Host_Name()
 	FROM 
-		dbo.Catalog AS c
-	WHERE c.Type = 2
+		dbo.Catalog AS rpt
+	WHERE 
+		1=1
+		AND rpt.[Type] = 2
 )
 SELECT 
- 	GroupBy1 = CASE  
-		WHEN @GroupByColumn = 'Report Name' THEN c.Name
-		WHEN @GroupByColumn = 'Report Folder' THEN c.ReportFolder
-		WHEN @GroupByColumn = 'User Id' THEN el.SimpleUserName
-		ELSE '<N/A>' END
-	, c.[Path]
-	, c.ReportFolder
-	, c.Name
-	, URL_ReportFolder = c.UrlPath + c.ReportFolder + '&ViewMode=List'
-	, URL_Report = c.UrlPath + c.ReportFolder + '%2f' + c.Name 	
-	, URL_Report_Filtered = 'http://' + Host_Name() + '/ReportServer/ReportServer?/' + c.ReportFolder + '%2f' + c.Name + '&rs:Command=Render&' + CONVERT(VARCHAR(2000), el.Parameters)
-	, UserName = el.SimpleUserName
-	, el.Status
+ 	GroupBy1 = 
+ 		CASE  
+			WHEN @GroupByColumn = 'Report Name' THEN rpt.ReportName
+			WHEN @GroupByColumn = 'Report Folder' THEN rpt.ReportFolder
+			WHEN @GroupByColumn = 'User Id' THEN usr.SimpleUserName
+			ELSE '<N/A>' 
+		END
+	, rpt.[Path]
+	, rpt.ReportFolder
+	, rpt.[Name]
+	, rpt.URL_ReportFolder
+	, rpt.URL_Report 
+	, URL_Report_Filtered = rpt.URL_Report + '&rs:Command=Render&' + CONVERT(VARCHAR(2000), el.[Parameters])
+	, UserName = usr.SimpleUserName
+	, el.[Status]
 	, el.TimeStart
 	, el.[RowCount]
 	, el.ByteCount
-	, el.Format
+	, el.[Format]
 	, el.[Parameters]
-	, TotalSeconds = el.TotalSecondsFormat
-	, TimeDataRetrieval = el.TimeDataRetrievalFormat
-	, TimeProcessing = el.TimeProcessingFormat
-	, TimeRendering = el.TimeRenderingFormat
-	, OrderbyDate = el.OrderbyDateFormat
+	, TotalSeconds = CONVERT(CHAR(8),DATEADD(ms,(el.TimeDataRetrieval + el.TimeProcessing + el.TimeRendering),0),108)
+	, TimeDataRetrieval = CONVERT(CHAR(8),DATEADD(ms,el.TimeDataRetrieval,0),108) 
+	, TimeProcessing = CONVERT(CHAR(8),DATEADD(ms,el.TimeProcessing,0),108)  
+	, TimeRendering = CONVERT(CHAR(8),DATEADD(ms,el.TimeRendering,0),108) 
+	, OrderbyDate = CAST(TimeStart AS DATETIME) 
 FROM 
-	report_catalog c 
-	LEFT JOIN report_execution_log el ON el.ReportID = c.ItemID
+	report_catalog AS rpt 
+	LEFT JOIN dbo.ExecutionLog AS el ON el.ReportID = rpt.ItemID
+	LEFT JOIN report_users AS usr ON el.UserName = usr.UserName
 WHERE 
 	1=1
-	AND c.Name NOT IN('Report Execution Log') -- whatever the name of this report is...
-	AND (@StartDate IS NULL OR el.TimeStartDate >= @StartDate)
-	AND (@EndDate IS NULL OR el.TimeStartDate <= @EndDate)	
-	AND ('<ALL>' IN(@UserName) OR el.SimpleUserName IN(@UserName))
-	AND ('<ALL>' IN(@LogStatus) OR el.[Status] IN(@LogStatus))
-	AND ('<ALL>' IN(@ReportFolder) OR c.ReportFolder IN(@ReportFolder))
-	AND ('<ALL>' IN(@ReportName) OR c.Name IN(@ReportName))
+	AND (@all_value IN(@LogStatus) OR el.[Status] IN(@LogStatus))
+	AND (@all_value IN (@ReportFolder) OR rpt.ReportFolder IN(@ReportFolder))
+	AND (@all_value IN(@ReportName) OR rpt.ReportName IN(@ReportName))
+	AND (@all_value IN(@UserName) OR usr.SimpleUserName IN(@UserName))
+	AND (@StartDate IS NULL OR CONVERT(DATETIME, CONVERT(VARCHAR(11),el.TimeStart,13)) >= @StartDate)
+	AND (@EndDate IS NULL OR CONVERT(DATETIME, CONVERT(VARCHAR(11),el.TimeStart,13)) <= @EndDate)
