@@ -3,6 +3,8 @@
 # SQL Server Scripts
 Various scripts I use for SQL Server
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE "MIT License Copyright © 2017 Anthony Duguid")
+
 ## General Database Scripts
 * [Check Index Fragmentation](SSDB.Check_Index_Fragmentation.sql)
 * [Database Backup](SSDB.Restore_Database_Backup.sql)
