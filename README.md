@@ -4,6 +4,7 @@
 Various scripts I use for SQL Server
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE "MIT License Copyright © 2017 Anthony Duguid")
+![current_build SQL_SERVER_2016](https://img.shields.io/badge/current_build-SQL_SERVER_2016-red.svg)
 
 ## General Database Scripts
 * [Check Index Fragmentation](SSDB.Check_Index_Fragmentation.sql)
