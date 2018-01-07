@@ -160,7 +160,7 @@ BEGIN
 			PRINT '=====================================================================';
 		END
 
-		IF NOT EXISTS (SELECT * FROM sys.triggers WHERE object_id = OBJECT_ID(N'[dbo].[TR_' + @TableName + '_LAST_UPDATED]'))
+		IF NOT EXISTS (SELECT * FROM sys.triggers WHERE object_id = OBJECT_ID(N'[' + @SchemaName + '].[TR_' + @TableName + '_LAST_UPDATED]'))
 		BEGIN
 
 			PRINT '=====================================================================';
