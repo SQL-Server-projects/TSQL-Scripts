@@ -25,6 +25,33 @@ BEGIN
 	-----------------------------------------------------
 	-----------------------------------------------------
 
+	--remove the table if exists
+	IF OBJECT_ID('dbo.ORGN', 'U') IS NOT NULL 
+	  DROP TABLE dbo.ORGN; 
+
+	--create the table
+	CREATE TABLE [dbo].[ORGN] (
+		[ORGN_ID]       INT             IDENTITY (1, 1) NOT NULL,
+		[ORGN_ABBR]     VARCHAR (5)     NOT NULL,
+		[ORGN_NAME]     VARCHAR (100)   NULL
+	);
+
+	--Add the keys
+	ALTER TABLE [dbo].[ORGN]
+		ADD CONSTRAINT [PK_ORGN] PRIMARY KEY NONCLUSTERED ([ORGN_ID] ASC);
+	ALTER TABLE [dbo].[ORGN]
+		ADD CONSTRAINT [UK_ORGN] UNIQUE NONCLUSTERED ([ORGN_ABBR] ASC);
+
+	--Add some test records
+	INSERT INTO dbo.ORGN (ORGN_ABBR, ORGN_NAME) VALUES('AABA', 'Altaba Inc');
+	INSERT INTO dbo.ORGN (ORGN_ABBR, ORGN_NAME) VALUES('AAPL', 'Apple Inc');
+	INSERT INTO dbo.ORGN (ORGN_ABBR, ORGN_NAME) VALUES('GOOG', 'Alphabet Inc');
+	INSERT INTO dbo.ORGN (ORGN_ABBR, ORGN_NAME) VALUES('MSFT', 'Microsoft Corporation');
+	INSERT INTO dbo.ORGN (ORGN_ABBR, ORGN_NAME) VALUES('TSLA', 'Tesla Inc');
+
+	--test procedure
+	EXEC dbo.RowLevelAuditAdd 'YourDatabase', 'dbo', 'ORGN';
+
 */
 
 	SET XACT_ABORT ON
