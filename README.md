@@ -3,6 +3,7 @@
 # SQL Server Scripts
 Various scripts I use for SQL Server
 
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/AnthonyDuguid)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE "MIT License Copyright © Anthony Duguid")
 ![current_build SQL_SERVER_2016](https://img.shields.io/badge/current_build-SQL_SERVER_2016-red.svg)
 
