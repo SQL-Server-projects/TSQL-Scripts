@@ -12,7 +12,7 @@ USE [$(_database)];
 GO
 
 :setvar login_name "" -- to search for an individual account enter it here e.g. "Domain\UserName"
-
+:setvar ssrs_service_account "Domain\ssrs_service_account"
 
 SET XACT_ABORT ON
 BEGIN TRANSACTION;
@@ -39,7 +39,7 @@ PRINT 'check databases owners ... ';
 	SELECT 
 		  [Server_Name] = @@SERVERNAME
 		, [Database_Name] = db.[name]
-		, [Login_Name] = sl.[Name]
+		, [Database_Owner] = sl.[Name]
 		, [CommandToRun] = (CASE WHEN db.[is_read_only] = 1 THEN '-- Remove ReadOnly State' WHEN db.[state_desc] = 'ONLINE' THEN 'ALTER AUTHORIZATION on DATABASE::[' + db.[name] + '] to [sa];' ELSE '-- Turn On ' END)
 		--, [Database_ID] = db.[database_id]
 		--, [Current_State] = db.[state_desc]
@@ -100,6 +100,7 @@ PRINT 'check databases users ... ';
 					AND dbu1.[User_Name] = dbu2.[User_Name]
 				FOR XML PATH('')
 				), 1, 1, '')
+		, [CommandToRun] = 'USE [' + [Database_Name] + ']; DROP USER [' + [User_Name] + '];'
 		--, [Login_Type]
 	FROM 
 		@dbs_users AS dbu1
@@ -143,20 +144,29 @@ PRINT '=====================================================================';
 PRINT 'check report subscriptions ... ';
 
 	IF DB_ID('ReportServer') IS NOT NULL
+		WITH 
+		service_account
+		AS
+		(
+			SELECT [service_account_id] = [UserID], [UserName] FROM [ReportServer].[dbo].[Users] WHERE [UserName] =  N'$(ssrs_service_account)'
+		)
 		SELECT DISTINCT
 			  [Server_Name] = @@SERVERNAME
 			, [Report_Name] = rp.[Name]
 			, [Subscription_Owner] = ou.[UserName]
 			, [Subscription_Owner_ID] = ou.[UserID]
+			, [CommandToRun] = 'UPDATE [ReportServer].[dbo].[Subscriptions] SET [OwnerID] = ''' + CAST(sa.[service_account_id] AS VARCHAR(MAX)) + ''' WHERE [OwnerID] = ''' + CAST(ou.[UserID] AS VARCHAR(MAX)) + ''''
 			--, sb.[Report_OID]
 		FROM 
 			[ReportServer].[dbo].[Subscriptions] AS sb
-			INNER JOIN [ReportServer].[dbo].[Catalog] AS rp ON rp.[ItemID] = sb.[Report_OID]
 			INNER JOIN [ReportServer].[dbo].[Users] AS ou ON ou.[UserID] = sb.[OwnerID]
+			INNER JOIN [ReportServer].[dbo].[Catalog] AS rp ON rp.[ItemID] = sb.[Report_OID]
+			, service_account AS sa
 		WHERE 
 			1=1
 			AND ou.[UserName] NOT IN(SELECT [Login_Name] COLLATE Latin1_General_CI_AS FROM #service_accounts)
 			AND (ou.[UserName] = N'$(login_name)' OR N'$(login_name)' = N'')
+
 
 PRINT '******* ROLLBACK TRANSACTION ******* ';
 ROLLBACK TRANSACTION;
