@@ -155,13 +155,12 @@ PRINT 'check report subscriptions ... ';
 			, [Report_Name] = rp.[Name]
 			, [Subscription_Owner] = ou.[UserName]
 			, [Subscription_Owner_ID] = ou.[UserID]
-			, [CommandToRun] = 'UPDATE [ReportServer].[dbo].[Subscriptions] SET [OwnerID] = ''' + CAST(sa.[service_account_id] AS VARCHAR(MAX)) + ''' WHERE [OwnerID] = ''' + CAST(ou.[UserID] AS VARCHAR(MAX)) + ''''
+			, [CommandToRun] = 'UPDATE [ReportServer].[dbo].[Subscriptions] SET [OwnerID] = ''' + CAST((SELECT [service_account_id] FROM service_account) AS VARCHAR(MAX)) + ''' WHERE [OwnerID] = ''' + CAST(ou.[UserID] AS VARCHAR(MAX)) + ''''
 			--, sb.[Report_OID]
 		FROM 
 			[ReportServer].[dbo].[Subscriptions] AS sb
 			INNER JOIN [ReportServer].[dbo].[Users] AS ou ON ou.[UserID] = sb.[OwnerID]
 			INNER JOIN [ReportServer].[dbo].[Catalog] AS rp ON rp.[ItemID] = sb.[Report_OID]
-			, service_account AS sa
 		WHERE 
 			1=1
 			AND ou.[UserName] NOT IN(SELECT [Login_Name] COLLATE Latin1_General_CI_AS FROM #service_accounts)
