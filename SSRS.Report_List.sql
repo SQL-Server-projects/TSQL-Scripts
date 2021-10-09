@@ -68,8 +68,7 @@ AS
 	FROM 
 		dbo.Catalog AS rpt
 	WHERE 
-		1=1
-		AND rpt.[Type] = 2
+		rpt.[Type] = 2
 )
 SELECT    
 	  rpt.ItemID
