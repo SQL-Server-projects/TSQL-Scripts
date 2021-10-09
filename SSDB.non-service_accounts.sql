@@ -48,8 +48,7 @@ PRINT 'check databases owners ... ';
 		[master].[sys].[databases] AS db
 		INNER JOIN [master].[sys].[syslogins] AS sl ON db.[owner_sid] = sl.[sid]
 	WHERE 
-		1=1
-		AND sl.[Name] NOT IN(SELECT [Login_Name] FROM #service_accounts)
+		 sl.[Name] NOT IN(SELECT [Login_Name] FROM #service_accounts)
 		AND (sl.[Name] = N'$(login_name)' OR N'$(login_name)' = N'')
 	ORDER BY 
 		db.[Name]
@@ -81,8 +80,7 @@ PRINT 'check databases users ... ';
 		[sys].[database_principals] AS dp
 		LEFT JOIN [sys].[database_role_members] AS dm ON dp.[principal_id] = dm.[member_principal_id]
 	WHERE 
-		1=1
-		AND dp.[sid] IS NOT NULL 
+		  dp.[sid] IS NOT NULL 
 		AND dp.[sid] NOT IN (0x00) 
 		AND dp.[is_fixed_role] != 1 
 		AND dp.[name] NOT LIKE ''##%'''
@@ -105,8 +103,7 @@ PRINT 'check databases users ... ';
 	FROM 
 		@dbs_users AS dbu1
 	WHERE 
-		1=1
-		AND [User_Name] NOT IN(SELECT [Login_Name] FROM #service_accounts)
+		 [User_Name] NOT IN(SELECT [Login_Name] FROM #service_accounts)
 		AND [Login_Type] = 'WINDOWS_USER'
 		AND ([User_Name] = N'$(login_name)' OR N'$(login_name)' = N'')
 	GROUP BY 
@@ -134,8 +131,7 @@ PRINT 'check agent jobs ... ';
 		INNER JOIN [master].[sys].[syslogins] AS sl ON sj.[owner_sid] = sl.[sid]
 		INNER JOIN [msdb].[dbo].[syscategories] AS sc ON sc.[category_id] = sj.[category_id]
 	WHERE 
-		1=1
-		AND sl.[Name] NOT IN(SELECT [Login_Name] FROM #service_accounts)
+		 sl.[Name] NOT IN(SELECT [Login_Name] FROM #service_accounts)
 		AND (sl.[name] = N'$(login_name)' OR N'$(login_name)' = N'')
 	ORDER BY 
 		sj.[name]
@@ -162,8 +158,7 @@ PRINT 'check report subscriptions ... ';
 			INNER JOIN [ReportServer].[dbo].[Users] AS ou ON ou.[UserID] = sb.[OwnerID]
 			INNER JOIN [ReportServer].[dbo].[Catalog] AS rp ON rp.[ItemID] = sb.[Report_OID]
 		WHERE 
-			1=1
-			AND ou.[UserName] NOT IN(SELECT [Login_Name] COLLATE Latin1_General_CI_AS FROM #service_accounts)
+			  ou.[UserName] NOT IN(SELECT [Login_Name] COLLATE Latin1_General_CI_AS FROM #service_accounts)
 			AND (ou.[UserName] = N'$(login_name)' OR N'$(login_name)' = N'')
 
 
